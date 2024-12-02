@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::iter::zip;
 use winnow::{
     ascii::{dec_uint, multispace1},
     combinator::separated_pair,
@@ -12,7 +11,11 @@ pub fn run(lines: &str) -> (u32, u32) {
     left.sort_unstable();
     right.sort_unstable();
 
-    let total_distance = zip(left.iter(), right.iter()).fold(0, |sum, (a, b)| sum + a.abs_diff(*b));
+    let total_distance = left
+        .iter()
+        .zip(right.iter())
+        .map(|(a, b)| a.abs_diff(*b))
+        .sum();
 
     let mut keys = right.clone();
     keys.dedup();
