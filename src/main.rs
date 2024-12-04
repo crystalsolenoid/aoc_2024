@@ -1,10 +1,20 @@
 use aoc_2024::days;
-use std::fs;
+use std::{env, fs};
 
 fn main() {
-    // will generalize this later
-    let path = "data/day1";
+    let args: Vec<String> = env::args().collect();
+    let day: u32 = args
+        .get(1)
+        .expect("please provide day as argument")
+        .parse()
+        .expect("day must be numeric");
+    let path = format!("data/day{}", args[1]);
     let data = fs::read_to_string(path).expect("failed to read file");
-    let result = days::day1::run(&data);
+    let result = match day {
+        1 => days::day1::run(&data),
+        2 => days::day2::run(&data),
+        3..=25 => todo!(),
+        _ => panic!("invalid day"),
+    };
     println!("{:?}", result);
 }
