@@ -20,22 +20,11 @@ fn report(levels: &[i32]) -> bool {
 }
 
 fn dampen(levels: &[i32]) -> bool {
-    levels.iter().combinations(levels.len() - 1).any(|r| {
-        let diffs: Vec<_> = r.windows(2).map(|pair| pair[1] - pair[0]).collect();
-        let gradual = diffs.iter().all(|&x| match x.abs() {
-            0 => false,
-            1..=3 => true,
-            _ => false,
-        });
-        let monodirectional = diffs.iter().all(|&x| x > 0) || diffs.iter().all(|&x| x < 0);
-        gradual && monodirectional
-    })
-    /* Why can't I do this instead??!
     levels
         .iter()
+        .cloned()
         .combinations(levels.len() - 1)
-        .any(|r| report(r))
-    */
+        .any(|r| report(&r))
 }
 
 fn line(input: &mut &str) -> PResult<Vec<i32>> {
