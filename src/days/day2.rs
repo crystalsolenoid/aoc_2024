@@ -1,16 +1,18 @@
-use winnow::{
-    ascii::{dec_int, multispace1},
-    combinator::separated,
-    PResult, Parser,
-};
+use itertools::Itertools;
+use winnow::{ascii::dec_int, combinator::separated, PResult, Parser};
 
 pub fn run(lines: &str) -> (u32, u32) {
     let part1 = lines
         .lines()
         .map(|l| line.parse(l).unwrap())
-        .filter(|l| report(&l))
+        .filter(|l| report(l))
         .count();
-    (part1 as u32, 0)
+    let part2 = lines
+        .lines()
+        .map(|l| line.parse(l).unwrap())
+        .filter(|l| dampen(l))
+        .count();
+    (part1 as u32, part2 as u32)
 }
 
 fn report(levels: &[i32]) -> bool {
@@ -22,6 +24,25 @@ fn report(levels: &[i32]) -> bool {
     });
     let monodirectional = diffs.iter().all(|&x| x > 0) || diffs.iter().all(|&x| x < 0);
     gradual && monodirectional
+}
+
+fn dampen(levels: &[i32]) -> bool {
+    levels.iter().combinations(levels.len() - 1).any(|r| {
+        let diffs: Vec<_> = r.windows(2).map(|pair| pair[1] - pair[0]).collect();
+        let gradual = diffs.iter().all(|&x| match x.abs() {
+            0 => false,
+            1..=3 => true,
+            _ => false,
+        });
+        let monodirectional = diffs.iter().all(|&x| x > 0) || diffs.iter().all(|&x| x < 0);
+        gradual && monodirectional
+    })
+    /* Why can't I do this instead??!
+    levels
+        .iter()
+        .combinations(levels.len() - 1)
+        .any(|r| report(r))
+    */
 }
 
 fn line(input: &mut &str) -> PResult<Vec<i32>> {
@@ -60,6 +81,12 @@ mod test {
     fn report2() {
         let input = vec![1, 2, 7, 8, 9];
         assert_eq!(report(&input), false);
+    }
+
+    #[test]
+    fn dampable_report() {
+        let input = vec![1, 3, 2, 4, 5];
+        assert_eq!(dampen(&input), true);
     }
 
     #[test]
