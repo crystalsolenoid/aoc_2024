@@ -7,8 +7,13 @@ use winnow::{
 };
 
 pub fn run(lines: &str) -> (u32, u32) {
+    let mut state = false;
+    let input = Stream {
+        input: lines,
+        state: State(&mut state),
+    };
     let part1 = parse_muls
-        .parse(lines)
+        .parse(input)
         .unwrap()
         .iter()
         .map(|(a, b)| a * b)
@@ -16,34 +21,34 @@ pub fn run(lines: &str) -> (u32, u32) {
     (part1, 0)
 }
 
-fn mul(input: &mut &str) -> PResult<(u32, u32)> {
+fn mul(input: &mut Stream) -> PResult<(u32, u32)> {
     preceded("mul", args).parse_next(input)
 }
 
-fn args(input: &mut &str) -> PResult<(u32, u32)> {
+fn args(input: &mut Stream) -> PResult<(u32, u32)> {
     delimited('(', pair, ')').parse_next(input)
 }
 
-fn pair(input: &mut &str) -> PResult<(u32, u32)> {
+fn pair(input: &mut Stream) -> PResult<(u32, u32)> {
     separated_pair(num, ',', num).parse_next(input)
 }
 
-fn take_digits<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn take_digits<'s>(input: &mut Stream<'s>) -> PResult<&'s str> {
     let mut parser = repeat(1..=3, one_of(AsChar::is_dec_digit))
         .map(|()| ())
         .take();
     parser.parse_next(input)
 }
 
-fn num(input: &mut &str) -> PResult<u32> {
+fn num(input: &mut Stream) -> PResult<u32> {
     take_digits.and_then(dec_uint).parse_next(input)
 }
 
-fn discard_junk(input: &mut &str) -> PResult<()> {
+fn discard_junk(input: &mut Stream) -> PResult<()> {
     take_until(0.., "mul").void().parse_next(input)
 }
 
-fn potential_mul(input: &mut &str) -> PResult<Option<(u32, u32)>> {
+fn potential_mul(input: &mut Stream) -> PResult<Option<(u32, u32)>> {
     alt((
         mul.map(|p: (u32, u32)| Some(p)),
         "mul".value(None),
@@ -52,7 +57,7 @@ fn potential_mul(input: &mut &str) -> PResult<Option<(u32, u32)>> {
     .parse_next(input)
 }
 
-fn parse_muls(input: &mut &str) -> PResult<Vec<(u32, u32)>> {
+fn parse_muls(input: &mut Stream) -> PResult<Vec<(u32, u32)>> {
     let potentials: Vec<Option<(u32, u32)>> = repeat(0.., potential_mul).parse_next(input)?;
     rest.parse_next(input)?;
     let out: Vec<(u32, u32)> = potentials.iter().cloned().flatten().collect();
@@ -104,9 +109,9 @@ fn potential_functions(input: &mut Stream) -> PResult<Option<(u32, u32)>> {
     alt((
         found_dont.value(None),
         found_do.value(None),
-        //        mul.map(|p: (u32, u32)| Some(p)),
+        mul.map(|p: (u32, u32)| Some(p)),
         "mul".value(None),
-        //        discard_junk.value(None),
+        discard_junk.value(None),
     ))
     .parse_next(input)
 }
@@ -131,13 +136,23 @@ mod test {
     #[test]
     fn parse_mul1() {
         let input = "mul(44,46)";
-        let output = mul.parse(input);
-        assert_eq!(output, Ok((44, 46)));
+        let mut state = false;
+        let stream = Stream {
+            input,
+            state: State(&mut state),
+        };
+        let output = mul.parse(stream).unwrap();
+        assert_eq!(output, (44, 46));
     }
 
     #[test]
     fn parse_mul2() {
         let input = "mul(1144,46)";
+        let mut state = false;
+        let input = Stream {
+            input,
+            state: State(&mut state),
+        };
         let output = mul.parse(input);
         assert!(output.is_err());
     }
@@ -145,6 +160,11 @@ mod test {
     #[test]
     fn parse_digits() {
         let input = "1234";
+        let mut state = false;
+        let input = Stream {
+            input,
+            state: State(&mut state),
+        };
         let output = num.parse(input);
         assert!(output.is_err());
     }
@@ -152,31 +172,51 @@ mod test {
     #[test]
     fn parse_digits_str() {
         let mut input = "1234";
+        let mut state = false;
+        let mut input = Stream {
+            input,
+            state: State(&mut state),
+        };
         let output = take_digits.parse_next(&mut input);
         assert_eq!(output, Ok("123"));
     }
 
     #[test]
     fn parse_ignore_invalid() {
-        let mut input = "nul(4*mul(44,46)";
-        let output = discard_junk.parse_next(&mut input);
+        let input = "nul(4*mul(44,46)";
+        let mut state = false;
+        let mut stream = Stream {
+            input,
+            state: State(&mut state),
+        };
+        let output = discard_junk.parse_next(&mut stream);
         assert_eq!(output, Ok(()));
-        assert_eq!(input, "mul(44,46)");
+        assert_eq!(stream.input, "mul(44,46)");
     }
 
     #[test]
     fn parse_skip_invalid_mul() {
-        let mut input = "mul(4*mul(44,46)";
-        let output = potential_mul.parse_next(&mut input);
-        assert_eq!(output, Ok(None));
-        assert_eq!(input, "(4*mul(44,46)");
+        let input = "mul(4*mul(44,46)";
+        let mut state = false;
+        let mut stream = Stream {
+            input,
+            state: State(&mut state),
+        };
+        let output = potential_mul.parse_next(&mut stream).unwrap();
+        assert_eq!(output, None);
+        assert_eq!(stream.input, "(4*mul(44,46)");
     }
 
     #[test]
     fn parse_multiple_mul() {
         let input = "mul(4*mul(44,46)";
-        let output = parse_muls.parse(input);
-        assert_eq!(output, Ok(vec![(44, 46)]));
+        let mut state = false;
+        let input = Stream {
+            input,
+            state: State(&mut state),
+        };
+        let output = parse_muls.parse(input).unwrap();
+        assert_eq!(output, vec![(44, 46)]);
     }
 
     #[test]
