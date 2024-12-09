@@ -62,8 +62,7 @@ fn num(input: &mut Stream) -> PResult<u32> {
 }
 
 fn discard_junk(input: &mut Stream) -> PResult<()> {
-    //let mut parser = repeat_till(1.., take(1usize), alt(("do()", "don't()", "mul()"))) //TODO
-    let mut parser = repeat_till(1.., take(1usize), peek("mul"))
+    let mut parser = repeat_till(1.., take(1usize), peek(alt(("mul", "don't", "do"))))
         .map(|((), _)| ())
         .take()
         .void();
@@ -107,8 +106,6 @@ fn found_do<'s>(i: &mut Stream<'s>) -> PResult<&'s str> {
 
 fn found_dont<'s>(i: &mut Stream<'s>) -> PResult<&'s str> {
     let out = "don't()".parse_next(i);
-    dbg!(&i);
-    dbg!(&out);
     // only update the state if the parsing actually succeeds, or else it'll get
     // messed with when checked during a branch like in alt()
     if out.is_ok() {
@@ -269,6 +266,7 @@ mod test {
 
     #[test]
     fn part2_partial() {
-        assert_eq!(run(EXAMPLE2).1, 48);
+        let input = "mul(2,4)^don't()_mul(5,5)";
+        assert_eq!(run(input).1, 8);
     }
 }
