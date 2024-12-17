@@ -11,7 +11,12 @@ pub fn run(lines: &str) -> (u32, u32) {
     dbg!(&WORD);
     dbg!(&grid);
     dbg!(rows(&grid));
-    dbg!(SearchIter::new(&grid, 0, &WORD).filter(|x| *x).count());
+    dbg!(SearchIter::new(grid.iter_row(0), &WORD)
+        .filter(|x| *x)
+        .count());
+    dbg!(SearchIter::new(grid.iter_row(1), &WORD)
+        .filter(|x| *x)
+        .count());
     let part1 = 0;
     let part2 = 0;
     (part1 as u32, part2 as u32)
@@ -29,10 +34,10 @@ struct SearchIter<'a> {
 }
 
 impl SearchIter<'_> {
-    fn new<'a>(grid: &'a Grid<u8>, row: usize, target: &'a [u8]) -> SearchIter<'a> {
+    fn new<'a>(iter: StepBy<std::slice::Iter<'a, u8>>, target: &'a [u8]) -> SearchIter<'a> {
         SearchIter {
             progress: 0,
-            grid_iter: grid.iter_row(row),
+            grid_iter: iter,
             target,
         }
     }
