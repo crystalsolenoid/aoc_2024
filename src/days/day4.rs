@@ -11,10 +11,9 @@ pub fn run(lines: &str) -> (u32, u32) {
     dbg!(&WORD);
     dbg!(&grid);
     dbg!(rows(&grid));
-    dbg!(SearchIter::new(grid.iter_row(0), &WORD)
-        .filter(|x| *x)
-        .count());
-    dbg!(SearchIter::new(grid.iter_row(1), &WORD)
+    dbg!(grid
+        .iter_rows()
+        .flat_map(|row| SearchIter::new(row, &WORD))
         .filter(|x| *x)
         .count());
     let part1 = 0;
