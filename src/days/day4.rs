@@ -1,6 +1,7 @@
 use grid::Grid;
 use itertools::Itertools;
 use std::iter::{Flatten, StepBy, Take};
+use std::slice::Iter;
 
 const WORD: [u8; 4] = [b'X', b'M', b'A', b'S'];
 
@@ -17,7 +18,7 @@ pub fn run(lines: &str) -> (u32, u32) {
         .flat_map(|row| SearchIter::new(row, &WORD))
         .filter(|x| *x)
         .count());
-    let diagonal2: Vec<_> = diagonal_right(&grid, 2).collect();
+    let diagonal2: Vec<_> = diagonal(&grid, Direction::Right, 2).collect();
     dbg!(diagonal2);
     let part1 = 0;
     let part2 = 0;
@@ -28,12 +29,21 @@ fn rows(grid: &Grid<u8>) -> usize {
     grid.iter_col(1).count()
 }
 
-fn diagonal_right<'a, T>(grid: &'a Grid<T>, x: usize) -> Take<StepBy<std::slice::Iter<'a, T>>> {
+enum Direction {
+    Left,
+    Right,
+}
+
+fn diagonal<'a, T>(grid: &'a Grid<T>, dir: Direction, x: usize) -> Take<StepBy<Iter<'a, T>>> {
     // TODO this only works with the default row-major order right now...
     assert!((0..grid.cols()).contains(&x));
+    let (step, take) = match dir {
+        Direction::Left => (grid.cols() - 1, x + 1),
+        Direction::Right => (grid.cols() + 1, grid.cols() - x),
+    };
     let mut diag = grid.iter();
     let _ = diag.nth(x - 1);
-    diag.step_by(grid.cols() + 1).take(grid.cols() - x)
+    diag.step_by(step).take(take)
 }
 
 struct SearchIter<'a> {
