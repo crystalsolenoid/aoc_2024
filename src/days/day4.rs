@@ -1,6 +1,6 @@
 use grid::Grid;
 use itertools::Itertools;
-use std::iter::{Flatten, StepBy, Take};
+use std::iter::{Rev, StepBy, Take};
 use std::slice::Iter;
 
 const WORD: [u8; 4] = [b'X', b'M', b'A', b'S'];
@@ -15,7 +15,7 @@ pub fn run(lines: &str) -> (u32, u32) {
     dbg!(rows(&grid));
     dbg!(grid
         .iter_rows()
-        .flat_map(|row| SearchIter::new(row, &WORD))
+        .flat_map(|row| SearchIter::new(row.rev(), &WORD))
         .filter(|x| *x)
         .count());
     let diagonal2: Vec<_> = diagonal(&grid, Direction::Right, 2).collect();
@@ -46,15 +46,17 @@ fn diagonal<'a, T>(grid: &'a Grid<T>, dir: Direction, x: usize) -> Take<StepBy<I
     diag.step_by(step).take(take)
 }
 
-struct SearchIter<'a> {
+type GridSlice<'a> = Rev<StepBy<Iter<'a, u8>>>;
+
+struct SearchIter<'a, GridSlice> {
     //    grid: &'a Grid<u8>,
     progress: usize,
-    grid_iter: StepBy<std::slice::Iter<'a, u8>>,
+    grid_iter: GridSlice,
     target: &'a [u8],
 }
 
-impl SearchIter<'_> {
-    fn new<'a>(iter: StepBy<std::slice::Iter<'a, u8>>, target: &'a [u8]) -> SearchIter<'a> {
+impl SearchIter<'_, GridSlice<'_>> {
+    fn new<'a>(iter: GridSlice<'a>, target: &'a [u8]) -> SearchIter<'a, GridSlice<'a>> {
         SearchIter {
             progress: 0,
             grid_iter: iter,
@@ -63,7 +65,7 @@ impl SearchIter<'_> {
     }
 }
 
-impl Iterator for SearchIter<'_> {
+impl Iterator for SearchIter<'_, GridSlice<'_>> {
     type Item = bool;
     fn next(self: &mut Self) -> Option<bool> {
         let want = WORD[self.progress];
