@@ -10,8 +10,8 @@ pub fn run(lines: &str) -> (u32, u32) {
     //    let grid: Vec<u8> = (0..100).collect();
     let width = lines.lines().next().unwrap().len();
     let grid = Grid::from_vec(grid, width);
-    dbg!(&WORD);
-    dbg!(&grid);
+    let w = grid.rows();
+    let h = grid.cols();
     let horizontal_count = &grid
         .iter_rows()
         .flat_map(|i| {
@@ -30,10 +30,25 @@ pub fn run(lines: &str) -> (u32, u32) {
         })
         .filter(|x| *x)
         .count();
-    dbg!(horizontal_count + vertical_count);
-    let diagonal2: Vec<_> = diagonal(&grid, Direction::Right, 2).collect();
-    dbg!(diagonal2);
-    let part1 = 0;
+    let diagonal_left_count = ((1 - h as i32)..w as i32)
+        .map(|i| diagonal(&grid, Direction::Left, i))
+        .flat_map(|i| {
+            let reverse = SearchIter::new(i.clone().rev(), &WORD);
+            let forwards = SearchIter::new(i, &WORD);
+            reverse.chain(forwards)
+        })
+        .filter(|x| *x)
+        .count();
+    let diagonal_right_count = ((1 - h as i32)..w as i32)
+        .map(|i| diagonal(&grid, Direction::Right, i))
+        .flat_map(|i| {
+            let reverse = SearchIter::new(i.clone().rev(), &WORD);
+            let forwards = SearchIter::new(i, &WORD);
+            reverse.chain(forwards)
+        })
+        .filter(|x| *x)
+        .count();
+    let part1 = horizontal_count + vertical_count + diagonal_right_count + diagonal_left_count;
     let part2 = 0;
     (part1 as u32, part2 as u32)
 }
@@ -43,16 +58,46 @@ enum Direction {
     Right,
 }
 
-// TODO include diagonals that start from the side
-fn diagonal<'a, T>(grid: &'a Grid<T>, dir: Direction, x: usize) -> Take<StepBy<Iter<'a, T>>> {
+fn diagonal<'a, T>(grid: &'a Grid<T>, dir: Direction, x: i32) -> Take<StepBy<Iter<'a, T>>> {
     // TODO this only works with the default row-major order right now...
-    assert!((0..grid.cols()).contains(&x));
-    let (step, take) = match dir {
-        Direction::Left => (grid.cols() - 1, x + 1),
-        Direction::Right => (grid.cols() + 1, grid.cols() - x),
+    let step = match dir {
+        Direction::Left => grid.cols() - 1,
+        Direction::Right => grid.cols() + 1,
+    };
+    let (start, take) = match x {
+        a if a >= grid.cols() as i32 => {
+            panic!("{a} is too big, exceeds column grid bound {}", grid.cols())
+        }
+        a if -a >= grid.rows() as i32 => panic!(
+            "{a} is too small, its negative exceeds row grid bound {}",
+            grid.rows()
+        ),
+        // starting from the top
+        a if a >= 0 => {
+            let x = x as usize;
+            let start = x;
+            assert!((0..grid.cols()).contains(&x));
+            let take = match dir {
+                Direction::Left => x + 1,
+                Direction::Right => grid.cols() - x,
+            };
+            (start, take)
+        }
+        // starting from the side
+        _ => {
+            let y = (-x) as usize;
+            let take = grid.rows();
+            let start = match dir {
+                Direction::Left => y * grid.cols() + grid.rows() - 1,
+                Direction::Right => y * grid.cols(),
+            };
+            (start, take)
+        }
     };
     let mut diag = grid.iter();
-    let _ = diag.nth(x - 1);
+    if start > 0 {
+        let _ = diag.nth(start - 1);
+    }
     diag.step_by(step).take(take)
 }
 
