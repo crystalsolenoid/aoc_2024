@@ -7,23 +7,21 @@ const WORD: [u8; 4] = [b'X', b'M', b'A', b'S'];
 
 pub fn run(lines: &str) -> (u32, u32) {
     let grid: Vec<u8> = lines.lines().flat_map(|l| l.as_bytes().to_vec()).collect();
-    let grid: Vec<u8> = (0..100).collect();
+    //    let grid: Vec<u8> = (0..100).collect();
     let width = lines.lines().next().unwrap().len();
     let grid = Grid::from_vec(grid, width);
     dbg!(&WORD);
     dbg!(&grid);
-    dbg!(rows(&grid));
-    /*
-        dbg!(grid
-            .iter_rows()
-            .flat_map(|row| SearchIter::new(row.rev()))
-            //.flat_map(|row| SearchIter::new(row.rev(), &WORD))
-            .filter(|x| *x)
-            .count());
-    */
-    let my_iter = grid.iter_rows().next().unwrap();
-    //    dbg!(SearchIter::new(my_iter).filter(|x| *x).count());
-    dbg!(SearchIter::new(0..5).filter(|x| *x).count());
+    let horizontal_count = &grid
+        .iter_rows()
+        .flat_map(|row| {
+            let reverse = SearchIter::new(row.clone().rev(), &WORD);
+            let forwards = SearchIter::new(row, &WORD);
+            reverse.chain(forwards)
+        })
+        .filter(|x| *x)
+        .count();
+    dbg!(horizontal_count);
     let diagonal2: Vec<_> = diagonal(&grid, Direction::Right, 2).collect();
     dbg!(diagonal2);
     let part1 = 0;
@@ -31,15 +29,12 @@ pub fn run(lines: &str) -> (u32, u32) {
     (part1 as u32, part2 as u32)
 }
 
-fn rows(grid: &Grid<u8>) -> usize {
-    grid.iter_col(1).count()
-}
-
 enum Direction {
     Left,
     Right,
 }
 
+// TODO include diagonals that start from the side
 fn diagonal<'a, T>(grid: &'a Grid<T>, dir: Direction, x: usize) -> Take<StepBy<Iter<'a, T>>> {
     // TODO this only works with the default row-major order right now...
     assert!((0..grid.cols()).contains(&x));
@@ -54,29 +49,25 @@ fn diagonal<'a, T>(grid: &'a Grid<T>, dir: Direction, x: usize) -> Take<StepBy<I
 
 //type GridSlice<'a> = Rev<StepBy<Iter<'a, u8>>>;
 
-struct SearchIter<I> {
+struct SearchIter<'a, I> {
     progress: usize,
     grid_iter: I,
-    //target: &'a [u8],
-    target: [u8; 2],
+    target: &'a [u8],
 }
 
-impl<I> SearchIter<I> {
-    fn new(iter: I) -> SearchIter<I> {
-        dbg!(std::any::type_name::<I>());
+impl<I> SearchIter<'_, I> {
+    fn new(iter: I, target: &[u8]) -> SearchIter<I> {
         SearchIter {
             progress: 0,
             grid_iter: iter,
-            target: [b'h', b'i'],
-            //target,
+            target,
         }
     }
 }
 
-impl<I> Iterator for SearchIter<I>
+impl<'a, I> Iterator for SearchIter<'a, I>
 where
-    I: Iterator<Item = u8>,
-    //I: Iterator<Item: PartialEq>,
+    I: Iterator<Item = &'a u8>,
 {
     type Item = bool;
 
@@ -87,8 +78,8 @@ where
         if have == None {
             return None;
         }
-        //if Some(&want) == have {
-        if Some(want) == have {
+        if Some(&want) == have {
+            //        if Some(want) == have {
             self.progress += 1;
             if self.progress == self.target.len() {
                 self.progress = 0;
@@ -96,8 +87,8 @@ where
             } else {
                 Some(false)
             }
-        } else if Some(first) == have {
-            //} else if Some(&first) == have {
+        //} else if Some(first) == have {
+        } else if Some(&first) == have {
             self.progress = 1;
             Some(false)
         } else {
