@@ -13,11 +13,17 @@ pub fn run(lines: &str) -> (u32, u32) {
     dbg!(&WORD);
     dbg!(&grid);
     dbg!(rows(&grid));
-    dbg!(grid
-        .iter_rows()
-        .flat_map(|row| SearchIter::new(row.rev(), &WORD))
-        .filter(|x| *x)
-        .count());
+    /*
+        dbg!(grid
+            .iter_rows()
+            .flat_map(|row| SearchIter::new(row.rev()))
+            //.flat_map(|row| SearchIter::new(row.rev(), &WORD))
+            .filter(|x| *x)
+            .count());
+    */
+    let my_iter = grid.iter_rows().next().unwrap();
+    //    dbg!(SearchIter::new(my_iter).filter(|x| *x).count());
+    dbg!(SearchIter::new(0..5).filter(|x| *x).count());
     let diagonal2: Vec<_> = diagonal(&grid, Direction::Right, 2).collect();
     dbg!(diagonal2);
     let part1 = 0;
@@ -46,27 +52,34 @@ fn diagonal<'a, T>(grid: &'a Grid<T>, dir: Direction, x: usize) -> Take<StepBy<I
     diag.step_by(step).take(take)
 }
 
-type GridSlice<'a> = Rev<StepBy<Iter<'a, u8>>>;
+//type GridSlice<'a> = Rev<StepBy<Iter<'a, u8>>>;
 
-struct SearchIter<'a, GridSlice> {
-    //    grid: &'a Grid<u8>,
+struct SearchIter<I> {
     progress: usize,
-    grid_iter: GridSlice,
-    target: &'a [u8],
+    grid_iter: I,
+    //target: &'a [u8],
+    target: [u8; 2],
 }
 
-impl SearchIter<'_, GridSlice<'_>> {
-    fn new<'a>(iter: GridSlice<'a>, target: &'a [u8]) -> SearchIter<'a, GridSlice<'a>> {
+impl<I> SearchIter<I> {
+    fn new(iter: I) -> SearchIter<I> {
+        dbg!(std::any::type_name::<I>());
         SearchIter {
             progress: 0,
             grid_iter: iter,
-            target,
+            target: [b'h', b'i'],
+            //target,
         }
     }
 }
 
-impl Iterator for SearchIter<'_, GridSlice<'_>> {
+impl<I> Iterator for SearchIter<I>
+where
+    I: Iterator<Item = u8>,
+    //I: Iterator<Item: PartialEq>,
+{
     type Item = bool;
+
     fn next(self: &mut Self) -> Option<bool> {
         let want = WORD[self.progress];
         let first = WORD[0];
@@ -74,7 +87,8 @@ impl Iterator for SearchIter<'_, GridSlice<'_>> {
         if have == None {
             return None;
         }
-        if Some(&want) == have {
+        //if Some(&want) == have {
+        if Some(want) == have {
             self.progress += 1;
             if self.progress == self.target.len() {
                 self.progress = 0;
@@ -82,7 +96,8 @@ impl Iterator for SearchIter<'_, GridSlice<'_>> {
             } else {
                 Some(false)
             }
-        } else if Some(&first) == have {
+        } else if Some(first) == have {
+            //} else if Some(&first) == have {
             self.progress = 1;
             Some(false)
         } else {
