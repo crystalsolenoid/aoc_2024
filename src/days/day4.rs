@@ -1,56 +1,50 @@
 use grid::Grid;
 use itertools::Itertools;
-use std::iter::{Rev, StepBy, Take};
+use std::iter::{Chain, Map, Rev, StepBy, Take};
+use std::ops::Range;
 use std::slice::Iter;
 
-const WORD: [u8; 4] = [b'X', b'M', b'A', b'S'];
+const XMAS: [u8; 4] = [b'X', b'M', b'A', b'S'];
+const MAS: [u8; 3] = [b'M', b'A', b'S'];
 
 pub fn run(lines: &str) -> (u32, u32) {
     let grid: Vec<u8> = lines.lines().flat_map(|l| l.as_bytes().to_vec()).collect();
     //    let grid: Vec<u8> = (0..100).collect();
     let width = lines.lines().next().unwrap().len();
     let grid = Grid::from_vec(grid, width);
-    let w = grid.rows();
-    let h = grid.cols();
-    let horizontal_count = &grid
-        .iter_rows()
-        .flat_map(|i| {
-            let reverse = SearchIter::new(i.clone().rev(), &WORD);
-            let forwards = SearchIter::new(i, &WORD);
-            reverse.chain(forwards)
-        })
-        .filter(|x| *x)
-        .count();
-    let vertical_count = &grid
-        .iter_cols()
-        .flat_map(|i| {
-            let reverse = SearchIter::new(i.clone().rev(), &WORD);
-            let forwards = SearchIter::new(i, &WORD);
-            reverse.chain(forwards)
-        })
-        .filter(|x| *x)
-        .count();
-    let diagonal_left_count = ((1 - h as i32)..w as i32)
-        .map(|i| diagonal(&grid, Direction::Left, i))
-        .flat_map(|i| {
-            let reverse = SearchIter::new(i.clone().rev(), &WORD);
-            let forwards = SearchIter::new(i, &WORD);
-            reverse.chain(forwards)
-        })
-        .filter(|x| *x)
-        .count();
-    let diagonal_right_count = ((1 - h as i32)..w as i32)
-        .map(|i| diagonal(&grid, Direction::Right, i))
-        .flat_map(|i| {
-            let reverse = SearchIter::new(i.clone().rev(), &WORD);
-            let forwards = SearchIter::new(i, &WORD);
-            reverse.chain(forwards)
-        })
-        .filter(|x| *x)
-        .count();
-    let part1 = horizontal_count + vertical_count + diagonal_right_count + diagonal_left_count;
+    let part1 = part_1(&grid);
     let part2 = 0;
     (part1 as u32, part2 as u32)
+}
+
+fn part_1(grid: &Grid<u8>) -> usize {
+    let w = grid.rows();
+    let h = grid.cols();
+    let orthog_count = &grid
+        .iter_rows()
+        .chain(grid.iter_cols())
+        .flat_map(|i| search_both_ways(i, &XMAS))
+        .filter(|x| *x)
+        .count();
+    let diagonal_count = ((1 - h as i32)..w as i32)
+        .map(|i| diagonal(&grid, Direction::Left, i))
+        .chain(((1 - h as i32)..w as i32).map(|i| diagonal(&grid, Direction::Right, i)))
+        .flat_map(|i| search_both_ways(i, &XMAS))
+        .filter(|x| *x)
+        .count();
+    orthog_count + diagonal_count
+}
+
+fn search_both_ways<'a, I>(
+    iter: I,
+    word: &'a [u8],
+) -> Chain<SearchIter<'a, Rev<I>>, SearchIter<'a, I>>
+where
+    I: Iterator<Item = &'a u8> + Clone + DoubleEndedIterator,
+{
+    let reverse = SearchIter::new(iter.clone().rev(), word);
+    let forwards = SearchIter::new(iter, word);
+    reverse.chain(forwards)
 }
 
 enum Direction {
@@ -101,8 +95,6 @@ fn diagonal<'a, T>(grid: &'a Grid<T>, dir: Direction, x: i32) -> Take<StepBy<Ite
     diag.step_by(step).take(take)
 }
 
-//type GridSlice<'a> = Rev<StepBy<Iter<'a, u8>>>;
-
 struct SearchIter<'a, I> {
     progress: usize,
     grid_iter: I,
@@ -126,8 +118,8 @@ where
     type Item = bool;
 
     fn next(self: &mut Self) -> Option<bool> {
-        let want = WORD[self.progress];
-        let first = WORD[0];
+        let want = self.target[self.progress];
+        let first = self.target[0];
         let have = self.grid_iter.next();
         if have == None {
             return None;
@@ -174,6 +166,6 @@ MXMXAXMASX";
 
     #[test]
     fn part2() {
-        assert_eq!(run(EXAMPLE).1, 0);
+        assert_eq!(run(EXAMPLE).1, 9);
     }
 }
