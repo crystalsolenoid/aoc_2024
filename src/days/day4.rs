@@ -14,14 +14,23 @@ pub fn run(lines: &str) -> (u32, u32) {
     dbg!(&grid);
     let horizontal_count = &grid
         .iter_rows()
-        .flat_map(|row| {
-            let reverse = SearchIter::new(row.clone().rev(), &WORD);
-            let forwards = SearchIter::new(row, &WORD);
+        .flat_map(|i| {
+            let reverse = SearchIter::new(i.clone().rev(), &WORD);
+            let forwards = SearchIter::new(i, &WORD);
             reverse.chain(forwards)
         })
         .filter(|x| *x)
         .count();
-    dbg!(horizontal_count);
+    let vertical_count = &grid
+        .iter_cols()
+        .flat_map(|i| {
+            let reverse = SearchIter::new(i.clone().rev(), &WORD);
+            let forwards = SearchIter::new(i, &WORD);
+            reverse.chain(forwards)
+        })
+        .filter(|x| *x)
+        .count();
+    dbg!(horizontal_count + vertical_count);
     let diagonal2: Vec<_> = diagonal(&grid, Direction::Right, 2).collect();
     dbg!(diagonal2);
     let part1 = 0;
