@@ -1,11 +1,8 @@
 use grid::Grid;
-use itertools::Itertools;
-use std::iter::{Chain, Map, Rev, StepBy, Take};
-use std::ops::Range;
+use std::iter::{Chain, Rev, StepBy, Take};
 use std::slice::Iter;
 
 const XMAS: [u8; 4] = [b'X', b'M', b'A', b'S'];
-const MAS: [u8; 3] = [b'M', b'A', b'S'];
 
 pub fn run(lines: &str) -> (u32, u32) {
     let grid: Vec<u8> = lines.lines().flat_map(|l| l.as_bytes().to_vec()).collect();
@@ -13,7 +10,7 @@ pub fn run(lines: &str) -> (u32, u32) {
     let width = lines.lines().next().unwrap().len();
     let grid = Grid::from_vec(grid, width);
     let part1 = part_1(&grid);
-    let part2 = 0;
+    let part2 = grid.count_x_mas();
     (part1 as u32, part2 as u32)
 }
 
@@ -27,8 +24,8 @@ fn part_1(grid: &Grid<u8>) -> usize {
         .filter(|x| *x)
         .count();
     let diagonal_count = ((1 - h as i32)..w as i32)
-        .map(|i| diagonal(&grid, Direction::Left, i))
-        .chain(((1 - h as i32)..w as i32).map(|i| diagonal(&grid, Direction::Right, i)))
+        .map(|i| grid.diagonal(Direction::Left, i))
+        .chain(((1 - h as i32)..w as i32).map(|i| grid.diagonal(Direction::Right, i)))
         .flat_map(|i| search_both_ways(i, &XMAS))
         .filter(|x| *x)
         .count();
@@ -52,56 +49,96 @@ enum Direction {
     Right,
 }
 
-fn diagonal<'a, T>(grid: &'a Grid<T>, dir: Direction, x: i32) -> Take<StepBy<Iter<'a, T>>> {
-    // TODO this only works with the default row-major order right now...
-    let step = match dir {
-        Direction::Left => grid.cols() - 1,
-        Direction::Right => grid.cols() + 1,
-    };
-    let (start, take) = match x {
-        a if a >= grid.cols() as i32 => {
-            panic!("{a} is too big, exceeds column grid bound {}", grid.cols())
-        }
-        a if -a >= grid.rows() as i32 => panic!(
-            "{a} is too small, its negative exceeds row grid bound {}",
-            grid.rows()
-        ),
-        // starting from the top
-        a if a >= 0 => {
-            let x = x as usize;
-            let start = x;
-            assert!((0..grid.cols()).contains(&x));
-            let take = match dir {
-                Direction::Left => x + 1,
-                Direction::Right => grid.cols() - x,
-            };
-            (start, take)
-        }
-        // starting from the side
-        _ => {
-            let y = (-x) as usize;
-            let take = grid.rows();
-            let start = match dir {
-                Direction::Left => y * grid.cols() + grid.rows() - 1,
-                Direction::Right => y * grid.cols(),
-            };
-            (start, take)
-        }
-    };
-    let mut diag = grid.iter();
-    if start > 0 {
-        let _ = diag.nth(start - 1);
-    }
-    diag.step_by(step).take(take)
+trait Occupancy {
+    fn count_x_mas(&self) -> usize;
 }
 
-struct SearchIter<'a, I> {
+impl Occupancy for Grid<u8> {
+    fn count_x_mas(&self) -> usize {
+        self.indexed_iter()
+            .filter(|(_, v)| **v == b'A')
+            .filter(|((x, y), _)| *x > 0 && *y > 0)
+            .filter(|((x, y), _)| {
+                let nw = self.get(x - 1, y - 1);
+                let se = self.get(x + 1, y + 1);
+                match nw.zip(se) {
+                    Some((b'M', b'S')) => true,
+                    Some((b'S', b'M')) => true,
+                    _ => false,
+                }
+            })
+            .filter(|((x, y), _)| {
+                let ne = self.get(x + 1, y - 1);
+                let sw = self.get(x - 1, y + 1);
+                match ne.zip(sw) {
+                    Some((b'M', b'S')) => true,
+                    Some((b'S', b'M')) => true,
+                    _ => false,
+                }
+            })
+            .count()
+    }
+}
+
+trait Diagonal<T> {
+    fn diagonal<'a>(&'a self, dir: Direction, x: i32) -> Take<StepBy<Iter<'a, T>>>;
+}
+
+impl<T> Diagonal<T> for Grid<T> {
+    fn diagonal<'a>(&'a self, dir: Direction, x: i32) -> Take<StepBy<Iter<'a, T>>> {
+        // TODO this only works with the default row-major order right now...
+        let step = match dir {
+            Direction::Left => self.cols() - 1,
+            Direction::Right => self.cols() + 1,
+        };
+        let (start, take) = match x {
+            a if a >= self.cols() as i32 => {
+                panic!("{a} is too big, exceeds column grid bound {}", self.cols())
+            }
+            a if -a >= self.rows() as i32 => panic!(
+                "{a} is too small, its negative exceeds row grid bound {}",
+                self.rows()
+            ),
+            // starting from the top
+            a if a >= 0 => {
+                let x = x as usize;
+                let start = x;
+                assert!((0..self.cols()).contains(&x));
+                let take = match dir {
+                    Direction::Left => x + 1,
+                    Direction::Right => self.cols() - x,
+                };
+                (start, take)
+            }
+            // starting from the side
+            _ => {
+                let y = (-x) as usize;
+                let take = self.rows();
+                let start = match dir {
+                    Direction::Left => y * self.cols() + self.rows() - 1,
+                    Direction::Right => y * self.cols(),
+                };
+                (start, take)
+            }
+        };
+        let mut diag = self.iter();
+        if start > 0 {
+            let _ = diag.nth(start - 1);
+        }
+        diag.step_by(step).take(take)
+    }
+}
+
+struct SearchIter<'a, I: Iterator> {
     progress: usize,
     grid_iter: I,
     target: &'a [u8],
 }
 
-impl<I> SearchIter<'_, I> {
+impl<I> SearchIter<'_, I>
+where
+    I: Iterator,
+{
     fn new(iter: I, target: &[u8]) -> SearchIter<I> {
         SearchIter {
             progress: 0,
@@ -125,7 +162,6 @@ where
             return None;
         }
         if Some(&want) == have {
-            //        if Some(want) == have {
             self.progress += 1;
             if self.progress == self.target.len() {
                 self.progress = 0;
@@ -133,7 +169,6 @@ where
             } else {
                 Some(false)
             }
-        //} else if Some(first) == have {
         } else if Some(&first) == have {
             self.progress = 1;
             Some(false)
