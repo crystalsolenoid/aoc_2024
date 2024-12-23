@@ -12,21 +12,48 @@ pub fn run(lines: &str) -> (u32, u32) {
         .collect();
     rules.sort_unstable();
     let _blank_line = input.next();
-    let updates: Vec<_> = input
+    let mut updates: Vec<_> = input
         .next()
         .expect("Updates list missing?")
         .1
         .map(|l| update.parse(l).expect("Update parsing failed."))
         .collect();
 
-    let part1: usize = updates
+    let valid_updates: Vec<_> = updates
+        .extract_if(|update| validate_update(&rules, &update))
+        .collect();
+    let mut invalid_updates = updates;
+
+    let part1: usize = valid_updates
         .iter()
-        .filter(|update| validate_update(&rules, &update))
         .map(|update| middle_page(&update))
         .sum();
 
-    let part2 = 0;
+    invalid_updates
+        .iter_mut()
+        .for_each(|update| fix_update(&rules, update));
+    let part2: usize = invalid_updates
+        .iter()
+        .map(|update| middle_page(&update))
+        .sum();
+
     (part1 as u32, part2 as u32)
+}
+
+fn fix_update(rules: &[(usize, usize)], update: &mut [usize]) {
+    loop {
+        //TODO this could infinite loop?
+        let mut violations = update
+            .iter()
+            .enumerate()
+            .combinations(2)
+            .map(|pair| ((pair[1].0, pair[0].0), (*pair[1].1, *pair[0].1)))
+            .filter(|reverse_pair| rules.binary_search(&reverse_pair.1).is_ok());
+        match violations.next() {
+            Some(violation) => update.swap(violation.0 .0, violation.0 .1),
+            None => break,
+        }
+    }
 }
 
 fn middle_page(update: &[usize]) -> usize {
@@ -92,6 +119,6 @@ mod test {
 
     #[test]
     fn part2() {
-        assert_eq!(run(EXAMPLE).1, 4);
+        assert_eq!(run(EXAMPLE).1, 123);
     }
 }
