@@ -4,12 +4,13 @@ use winnow::{ascii::dec_uint, combinator::separated, combinator::separated_pair,
 pub fn run(lines: &str) -> (u32, u32) {
     let binding = lines.lines().chunk_by(|l| l.is_empty());
     let mut input = binding.into_iter();
-    let rules: Vec<_> = input
+    let mut rules: Vec<_> = input
         .next()
         .expect("Rules list missing?")
         .1
         .map(|l| rule.parse(l).expect("Rule parsing failed."))
         .collect();
+    rules.sort_unstable();
     let _blank_line = input.next();
     let updates: Vec<_> = input
         .next()
@@ -17,9 +18,18 @@ pub fn run(lines: &str) -> (u32, u32) {
         .1
         .map(|l| update.parse(l).expect("Update parsing failed."))
         .collect();
+    validate_update(&rules, &updates[3]);
     let part1 = 0;
     let part2 = 0;
     (part1 as u32, part2 as u32)
+}
+
+fn validate_update(rules: &[(usize, usize)], update: &[usize]) -> bool {
+    update
+        .iter()
+        .combinations(2)
+        .map(|pair| (*pair[1], *pair[0]))
+        .all(|reverse_pair| rules.binary_search(&reverse_pair).is_err())
 }
 
 fn rule(input: &mut &str) -> PResult<(usize, usize)> {
