@@ -1,8 +1,8 @@
 use winnow::{
     ascii::dec_uint,
-    combinator::{alt, cond, delimited, peek, preceded, repeat, repeat_till, rest, separated_pair},
+    combinator::{alt, delimited, peek, preceded, repeat, repeat_till, rest, separated_pair},
     stream::AsChar,
-    token::{one_of, take, take_until},
+    token::{one_of, take},
     PResult, Parser, Stateful,
 };
 
@@ -192,7 +192,7 @@ mod test {
 
     #[test]
     fn parse_digits_str() {
-        let mut input = "1234";
+        let input = "1234";
         let mut state = true;
         let mut input = Stream {
             input,
@@ -248,7 +248,7 @@ mod test {
             input,
             state: State(&mut state),
         };
-        let output = found_do.parse(input).unwrap();
+        let _output = found_do.parse(input).unwrap();
         assert_eq!(state, true);
     }
 
@@ -260,7 +260,7 @@ mod test {
             input,
             state: State(&mut state),
         };
-        let output = alt((found_do, "doo()")).parse(input).unwrap();
+        let _output = alt((found_do, "doo()")).parse(input).unwrap();
         assert_eq!(state, false);
     }
 
