@@ -18,10 +18,21 @@ pub fn run(lines: &str) -> (u32, u32) {
         .1
         .map(|l| update.parse(l).expect("Update parsing failed."))
         .collect();
-    validate_update(&rules, &updates[3]);
-    let part1 = 0;
+
+    let part1: usize = updates
+        .iter()
+        .filter(|update| validate_update(&rules, &update))
+        .map(|update| middle_page(&update))
+        .sum();
+
     let part2 = 0;
     (part1 as u32, part2 as u32)
+}
+
+fn middle_page(update: &[usize]) -> usize {
+    let len = update.len();
+    let middle = len / 2;
+    update[middle]
 }
 
 fn validate_update(rules: &[(usize, usize)], update: &[usize]) -> bool {
