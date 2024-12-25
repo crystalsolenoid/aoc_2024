@@ -4,16 +4,53 @@ use std::fmt;
 
 pub fn run(lines: &str) -> (u32, u32) {
     let mut room: Grid<Cell> = grid::grid![];
-    let mut guard: (usize, usize, Dir) = (0, 0, Dir::North);
+    // TODO how to initialize guard for the first time in function? Probably some
+    // Option type stuff...
+    let mut guard: Guard = Guard::new(0, 0, Dir::North);
     lines
         .lines()
         .enumerate()
         .for_each(|(y, l)| room.push_row(parse_line(l, y, &mut guard)));
-    dbg!(room);
-    dbg!(guard);
+    dbg!(&room);
+    dbg!(guard.step(&room));
     let part1 = 0;
     let part2 = 0;
     (part1 as u32, part2 as u32)
+}
+
+#[derive(Debug)]
+struct Guard {
+    x: usize,
+    y: usize,
+    d: Dir,
+}
+
+#[derive(Debug)]
+enum StepErr {
+    Barrier,
+    Edge,
+}
+
+impl Guard {
+    fn new(x: usize, y: usize, d: Dir) -> Self {
+        Guard { x, y, d }
+    }
+
+    fn step(&mut self, r: &Grid<Cell>) -> Result<(), StepErr> {
+        match self.pointing_towards() {
+            None => return Err(StepErr::Edge),
+            Some((x, y)) => todo!(),
+        }
+    }
+
+    fn pointing_towards(&self) -> Option<(usize, usize)> {
+        match self.d {
+            Dir::North => Some(self.x).zip(self.y.checked_sub(1)),
+            Dir::East => Some((self.x + 1, self.y)),
+            Dir::South => Some((self.x, self.y + 1)),
+            Dir::West => self.x.checked_sub(1).zip(Some(self.y)),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -90,13 +127,13 @@ impl TryFrom<u8> for Cell {
     }
 }
 
-fn parse_line(l: &str, y: usize, guard: &mut (usize, usize, Dir)) -> Vec<Cell> {
+fn parse_line(l: &str, y: usize, guard: &mut Guard) -> Vec<Cell> {
     l.bytes()
         .enumerate()
         .map(|(x, c)| {
             let cell = Cell::try_from(c).unwrap();
             if let Cell::Guard(dir) = cell {
-                *guard = (x, y, dir);
+                *guard = Guard::new(x, y, dir);
             }
             cell
         })
