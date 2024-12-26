@@ -13,7 +13,13 @@ pub fn run(lines: &str) -> (u32, u32) {
         .for_each(|(y, l)| room.push_row(parse_line(l, y, &mut guard)));
     while guard.movement(&mut room) {}
     guard.movement(&mut room);
-    let part1 = room.iter().filter(|&cell| *cell == Cell::Path).count();
+    let part1 = room
+        .iter()
+        .filter(|&cell| match *cell {
+            Cell::Path(_, _) => true,
+            _ => false,
+        })
+        .count();
     let part2 = 0;
     (part1 as u32, part2 as u32)
 }
@@ -36,10 +42,29 @@ impl Guard {
         Guard { x, y, d }
     }
 
+    fn new_path(&self, r: &Grid<Cell>) -> Cell {
+        let current_path = match self.d {
+            Dir::North | Dir::South => Cell::Path(false, true),
+            Dir::West | Dir::East => Cell::Path(true, false),
+        };
+        match r[(self.y, self.x)] {
+            Cell::Guard(_) => current_path,
+            Cell::Open => current_path,
+            Cell::Path(h, v) => {
+                if let Cell::Path(c_h, c_v) = current_path {
+                    Cell::Path(h || c_h, v || c_v)
+                } else {
+                    panic!()
+                }
+            }
+            _ => todo!("{:?}", self.d),
+        }
+    }
+
     fn movement(&mut self, r: &mut Grid<Cell>) -> bool {
         match self.try_step(r) {
             Err(StepErr::Edge) => {
-                r[(self.y, self.x)] = Cell::Path;
+                r[(self.y, self.x)] = self.new_path(r);
                 false
             }
             Err(StepErr::Barrier) => {
@@ -57,7 +82,7 @@ impl Guard {
             Dir::South => Dir::West,
             Dir::West => Dir::North,
         };
-        r[(self.y, self.x)] = Cell::Guard(self.d);
+        r[(self.y, self.x)] = Cell::Path(true, true);
     }
 
     fn try_step(&mut self, r: &mut Grid<Cell>) -> Result<(usize, usize), StepErr> {
@@ -67,8 +92,7 @@ impl Guard {
                 None => Err(StepErr::Edge),
                 Some(Cell::Barrier) => Err(StepErr::Barrier),
                 _ => {
-                    r[(self.y, self.x)] = Cell::Path;
-                    r[(y, x)] = Cell::Guard(self.d);
+                    r[(self.y, self.x)] = self.new_path(r);
                     self.x = x;
                     self.y = y;
                     Ok((y, x))
@@ -126,12 +150,12 @@ impl Into<&str> for &Dir {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 enum Cell {
     Open,
     Barrier,
     Guard(Dir),
-    Path,
+    Path(bool, bool), // (horizontal, vertical)
 }
 
 impl fmt::Debug for Cell {
@@ -142,7 +166,10 @@ impl fmt::Debug for Cell {
             match self {
                 Cell::Open => ".",
                 Cell::Barrier => "#",
-                Cell::Path => "X",
+                Cell::Path(true, false) => "-",
+                Cell::Path(false, true) => "|",
+                Cell::Path(true, true) => "+",
+                Cell::Path(false, false) => panic!("invald state"),
                 Cell::Guard(d) => d.into(),
             }
         )
@@ -156,7 +183,6 @@ impl TryFrom<u8> for Cell {
         match byte {
             b'.' => Ok(Cell::Open),
             b'#' => Ok(Cell::Barrier),
-            //            _ => Cell::Guard(c.try_into().map_err("Invalid character found.")),
             _ => byte.try_into().map(|v| Cell::Guard(v)),
         }
     }
@@ -197,6 +223,6 @@ mod test {
 
     #[test]
     fn part2() {
-        assert_eq!(run(EXAMPLE).1, 0);
+        assert_eq!(run(EXAMPLE).1, 6);
     }
 }
