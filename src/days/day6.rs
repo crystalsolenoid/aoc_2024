@@ -11,17 +11,32 @@ pub fn run(lines: &str) -> (u32, u32) {
         .lines()
         .enumerate()
         .for_each(|(y, l)| room.push_row(parse_line(l, y, &mut guard)));
+
+    add_obstacle(3, 6, &mut room);
+
     while guard.movement(&mut room) {}
-    guard.movement(&mut room);
+
     let part1 = room
         .iter()
         .filter(|&cell| match *cell {
             Cell::Path(_, _) => true,
+            Cell::Guard(_) => true,
             _ => false,
         })
         .count();
+    dbg!(&room);
+
     let part2 = 0;
     (part1 as u32, part2 as u32)
+}
+
+fn add_obstacle(x: usize, y: usize, r: &mut Grid<Cell>) {
+    match r.get_mut(y, x) {
+        Some(Cell::Guard(_)) => panic!(),
+        Some(Cell::Barrier) => panic!(),
+        Some(c) => *c = Cell::NewBarrier,
+        None => panic!(),
+    };
 }
 
 #[derive(Debug)]
@@ -33,6 +48,7 @@ struct Guard {
 
 #[derive(Debug)]
 enum StepErr {
+    Loop,
     Barrier,
     Edge,
 }
@@ -48,7 +64,7 @@ impl Guard {
             Dir::West | Dir::East => Cell::Path(true, false),
         };
         match r[(self.y, self.x)] {
-            Cell::Guard(_) => current_path,
+            Cell::Guard(a) => Cell::Guard(a),
             Cell::Open => current_path,
             Cell::Path(h, v) => {
                 if let Cell::Path(c_h, c_v) = current_path {
@@ -67,22 +83,24 @@ impl Guard {
                 r[(self.y, self.x)] = self.new_path(r);
                 false
             }
-            Err(StepErr::Barrier) => {
-                self.turn(r);
-                true
-            }
+            Err(StepErr::Barrier) => self.turn(r),
+            Err(StepErr::Loop) => false,
             Ok(_) => true,
         }
     }
 
-    fn turn(&mut self, r: &mut Grid<Cell>) {
+    fn turn(&mut self, r: &mut Grid<Cell>) -> bool {
         self.d = match self.d {
             Dir::North => Dir::East,
             Dir::East => Dir::South,
             Dir::South => Dir::West,
             Dir::West => Dir::North,
         };
-        r[(self.y, self.x)] = Cell::Path(true, true);
+        let path = Cell::Path(true, true);
+        let old_cell = r[(self.y, self.x)];
+        r[(self.y, self.x)] = path;
+        let in_loop = old_cell == path;
+        !in_loop
     }
 
     fn try_step(&mut self, r: &mut Grid<Cell>) -> Result<(usize, usize), StepErr> {
@@ -91,11 +109,18 @@ impl Guard {
             Some((x, y)) => match r.get(y, x) {
                 None => Err(StepErr::Edge),
                 Some(Cell::Barrier) => Err(StepErr::Barrier),
+                Some(Cell::NewBarrier) => Err(StepErr::Barrier),
                 _ => {
-                    r[(self.y, self.x)] = self.new_path(r);
+                    let path = self.new_path(r);
+                    let old_cell = r[(self.y, self.x)];
+                    r[(self.y, self.x)] = path;
                     self.x = x;
                     self.y = y;
-                    Ok((y, x))
+                    match path {
+                        Cell::Path(true, true) => Ok((y, x)),
+                        Cell::Path(_, _) if path == old_cell => Err(StepErr::Loop),
+                        _ => Ok((y, x)),
+                    }
                 }
             },
         }
@@ -154,6 +179,7 @@ impl Into<&str> for &Dir {
 enum Cell {
     Open,
     Barrier,
+    NewBarrier,
     Guard(Dir),
     Path(bool, bool), // (horizontal, vertical)
 }
@@ -166,6 +192,7 @@ impl fmt::Debug for Cell {
             match self {
                 Cell::Open => ".",
                 Cell::Barrier => "#",
+                Cell::NewBarrier => "O",
                 Cell::Path(true, false) => "-",
                 Cell::Path(false, true) => "|",
                 Cell::Path(true, true) => "+",
