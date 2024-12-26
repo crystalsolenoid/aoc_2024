@@ -11,11 +11,9 @@ pub fn run(lines: &str) -> (u32, u32) {
         .lines()
         .enumerate()
         .for_each(|(y, l)| room.push_row(parse_line(l, y, &mut guard)));
-    dbg!(&room);
     while guard.movement(&mut room) {}
     guard.movement(&mut room);
-    dbg!(&room);
-    let part1 = 0;
+    let part1 = room.iter().filter(|&cell| *cell == Cell::Path).count();
     let part2 = 0;
     (part1 as u32, part2 as u32)
 }
@@ -39,18 +37,33 @@ impl Guard {
     }
 
     fn movement(&mut self, r: &mut Grid<Cell>) -> bool {
-        let old_coords = (self.y, self.x);
         match self.try_step(r) {
-            Err(StepErr::Edge) => false,
-            Err(StepErr::Barrier) => todo!(),
-            Ok(new_coords) => true,
+            Err(StepErr::Edge) => {
+                r[(self.y, self.x)] = Cell::Path;
+                false
+            }
+            Err(StepErr::Barrier) => {
+                self.turn(r);
+                true
+            }
+            Ok(_) => true,
         }
+    }
+
+    fn turn(&mut self, r: &mut Grid<Cell>) {
+        self.d = match self.d {
+            Dir::North => Dir::East,
+            Dir::East => Dir::South,
+            Dir::South => Dir::West,
+            Dir::West => Dir::North,
+        };
+        r[(self.y, self.x)] = Cell::Guard(self.d);
     }
 
     fn try_step(&mut self, r: &mut Grid<Cell>) -> Result<(usize, usize), StepErr> {
         match self.pointing_towards() {
             None => Err(StepErr::Edge),
-            Some((x, y)) => match dbg!(r.get(y, x)) {
+            Some((x, y)) => match r.get(y, x) {
                 None => Err(StepErr::Edge),
                 Some(Cell::Barrier) => Err(StepErr::Barrier),
                 _ => {
@@ -74,7 +87,7 @@ impl Guard {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum Dir {
     North,
     East,
@@ -113,6 +126,7 @@ impl Into<&str> for &Dir {
     }
 }
 
+#[derive(PartialEq)]
 enum Cell {
     Open,
     Barrier,
