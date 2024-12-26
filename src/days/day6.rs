@@ -12,7 +12,9 @@ pub fn run(lines: &str) -> (u32, u32) {
         .enumerate()
         .for_each(|(y, l)| room.push_row(parse_line(l, y, &mut guard)));
     dbg!(&room);
-    dbg!(guard.step(&room));
+    while guard.movement(&mut room) {}
+    guard.movement(&mut room);
+    dbg!(&room);
     let part1 = 0;
     let part2 = 0;
     (part1 as u32, part2 as u32)
@@ -36,10 +38,29 @@ impl Guard {
         Guard { x, y, d }
     }
 
-    fn step(&mut self, r: &Grid<Cell>) -> Result<(), StepErr> {
+    fn movement(&mut self, r: &mut Grid<Cell>) -> bool {
+        let old_coords = (self.y, self.x);
+        match self.try_step(r) {
+            Err(StepErr::Edge) => false,
+            Err(StepErr::Barrier) => todo!(),
+            Ok(new_coords) => true,
+        }
+    }
+
+    fn try_step(&mut self, r: &mut Grid<Cell>) -> Result<(usize, usize), StepErr> {
         match self.pointing_towards() {
-            None => return Err(StepErr::Edge),
-            Some((x, y)) => todo!(),
+            None => Err(StepErr::Edge),
+            Some((x, y)) => match dbg!(r.get(y, x)) {
+                None => Err(StepErr::Edge),
+                Some(Cell::Barrier) => Err(StepErr::Barrier),
+                _ => {
+                    r[(self.y, self.x)] = Cell::Path;
+                    r[(y, x)] = Cell::Guard(self.d);
+                    self.x = x;
+                    self.y = y;
+                    Ok((y, x))
+                }
+            },
         }
     }
 
