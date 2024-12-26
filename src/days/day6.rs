@@ -12,9 +12,16 @@ pub fn run(lines: &str) -> (u32, u32) {
         .enumerate()
         .for_each(|(y, l)| room.push_row(parse_line(l, y, &mut guard)));
 
-    add_obstacle(3, 6, &mut room);
+    //add_obstacle(3, 6, &mut room);
 
-    while guard.movement(&mut room) {}
+    let mut outcome = StepOutcome::NotDone;
+    while outcome == StepOutcome::NotDone {
+        outcome = guard.movement(&mut room);
+    }
+
+    if outcome == StepOutcome::FoundLoop {
+        dbg!("found a loop");
+    }
 
     let part1 = room
         .iter()
@@ -53,6 +60,13 @@ enum StepErr {
     Edge,
 }
 
+#[derive(PartialEq)]
+enum StepOutcome {
+    NotDone,
+    LeftArea,
+    FoundLoop,
+}
+
 impl Guard {
     fn new(x: usize, y: usize, d: Dir) -> Self {
         Guard { x, y, d }
@@ -77,19 +91,19 @@ impl Guard {
         }
     }
 
-    fn movement(&mut self, r: &mut Grid<Cell>) -> bool {
+    fn movement(&mut self, r: &mut Grid<Cell>) -> StepOutcome {
         match self.try_step(r) {
             Err(StepErr::Edge) => {
                 r[(self.y, self.x)] = self.new_path(r);
-                false
+                StepOutcome::LeftArea
             }
-            Err(StepErr::Barrier) => self.turn(r),
-            Err(StepErr::Loop) => false,
-            Ok(_) => true,
+            Err(StepErr::Barrier) => self.turn(r), // loop!
+            Err(StepErr::Loop) => StepOutcome::FoundLoop,
+            Ok(_) => StepOutcome::NotDone,
         }
     }
 
-    fn turn(&mut self, r: &mut Grid<Cell>) -> bool {
+    fn turn(&mut self, r: &mut Grid<Cell>) -> StepOutcome {
         self.d = match self.d {
             Dir::North => Dir::East,
             Dir::East => Dir::South,
@@ -99,8 +113,10 @@ impl Guard {
         let path = Cell::Path(true, true);
         let old_cell = r[(self.y, self.x)];
         r[(self.y, self.x)] = path;
-        let in_loop = old_cell == path;
-        !in_loop
+        match old_cell == path {
+            true => StepOutcome::FoundLoop,
+            false => StepOutcome::NotDone,
+        }
     }
 
     fn try_step(&mut self, r: &mut Grid<Cell>) -> Result<(usize, usize), StepErr> {
