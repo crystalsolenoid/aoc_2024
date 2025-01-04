@@ -3,16 +3,24 @@ use itertools::Itertools;
 use std::fmt;
 
 pub fn run(lines: &str) -> (u32, u32) {
-    let mut room: Grid<Cell> = grid::grid![];
-    // TODO how to initialize guard for the first time in function? Probably some
-    // Option type stuff...
-    let mut guard: Guard = Guard::new(0, 0, Dir::North);
-    lines
-        .lines()
-        .enumerate()
-        .for_each(|(y, l)| room.push_row(parse_line(l, y, &mut guard)));
+    let clean_room;
+    let clean_guard;
+    {
+        let mut building_room: Grid<Cell> = grid::grid![];
+        // TODO how to initialize guard for the first time in function? Probably some
+        // Option type stuff...
+        let mut guard: Guard = Guard::new(0, 0, Dir::North);
+        lines
+            .lines()
+            .enumerate()
+            .for_each(|(y, l)| building_room.push_row(parse_line(l, y, &mut guard)));
 
-    //add_obstacle(3, 6, &mut room);
+        clean_room = building_room;
+        clean_guard = guard;
+    }
+
+    let mut room = clean_room.clone();
+    let mut guard = clean_guard.clone();
 
     let mut outcome = StepOutcome::NotDone;
     while outcome == StepOutcome::NotDone {
@@ -23,30 +31,56 @@ pub fn run(lines: &str) -> (u32, u32) {
         dbg!("found a loop");
     }
 
-    let part1 = room
-        .iter()
-        .filter(|&cell| match *cell {
-            Cell::Path(_, _) => true,
-            Cell::Guard(_) => true,
-            _ => false,
+    let original_path: Vec<_> = room
+        .indexed_iter()
+        .filter_map(|(loc, cell)| match cell {
+            Cell::Path(_, _) => Some(loc),
+            //Cell::Guard(_) => Some(loc),
+            _ => None,
         })
-        .count();
-    dbg!(&room);
+        .collect();
 
-    let part2 = 0;
+    let part1 = original_path.len() + 1;
+
+    let part2 = original_path
+        .iter()
+        .filter_map(|(y, x)| {
+            let mut room = clean_room.clone();
+            let mut guard = clean_guard.clone();
+            add_obstacle(*x, *y, &mut room);
+
+            let outcome = walk_path(&mut room, &mut guard);
+
+            match outcome {
+                StepOutcome::FoundLoop => Some(()),
+                StepOutcome::LeftArea => None,
+                StepOutcome::NotDone => panic!("Should be finished at this point."),
+            }
+        })
+        //        .next();
+        .count();
+
     (part1 as u32, part2 as u32)
+}
+
+fn walk_path(room: &mut Grid<Cell>, guard: &mut Guard) -> StepOutcome {
+    let mut outcome = StepOutcome::NotDone;
+    while outcome == StepOutcome::NotDone {
+        outcome = guard.movement(room);
+    }
+    outcome
 }
 
 fn add_obstacle(x: usize, y: usize, r: &mut Grid<Cell>) {
     match r.get_mut(y, x) {
-        Some(Cell::Guard(_)) => panic!(),
-        Some(Cell::Barrier) => panic!(),
+        Some(Cell::Guard(_)) => panic!("Can't put the obstacle on the guard."),
+        Some(Cell::Barrier) => panic!("Can't put the obstacle on an existing barrier."),
         Some(c) => *c = Cell::NewBarrier,
-        None => panic!(),
+        None => panic!("Can't put obstacle out of bounds."),
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct Guard {
     x: usize,
     y: usize,
