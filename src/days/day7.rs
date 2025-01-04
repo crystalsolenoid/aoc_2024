@@ -7,7 +7,7 @@ pub fn run(lines: &str) -> (u32, u32) {
         .map(|l| equation.parse(l).expect("{l} failed to parse"))
         .collect();
 
-    validate_equation(&equations[0]);
+    validate_equation((6, vec![4, 2, 1]));
 
     let part1 = 0;
     let part2 = 0;
@@ -17,10 +17,27 @@ pub fn run(lines: &str) -> (u32, u32) {
 
 type Equation = (u32, Vec<u32>);
 
-fn validate_equation(eq: &Equation) -> bool {
-    dbg!(eq);
+enum Op {
+    Plus,
+    Mul,
+}
 
-    true
+fn validate_equation(eq: Equation) -> bool {
+    let (target, operands) = eq;
+
+    let binding = vec![Op::Plus, Op::Plus];
+    let mut operations = binding.iter();
+
+    let result: u32 = operands
+        .iter()
+        .copied()
+        .reduce(|acc, n| match operations.next() {
+            Some(Op::Plus) => acc + n,
+            Some(Op::Mul) => acc * n,
+            None => panic!("Operations list too short!"),
+        })
+        .unwrap();
+    result == target
 }
 
 fn equation(input: &mut &str) -> PResult<Equation> {
