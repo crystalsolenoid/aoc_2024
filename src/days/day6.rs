@@ -1,7 +1,12 @@
 use grid::Grid;
+use itertools::Itertools;
+use log::{debug, info, trace, warn};
+use std::cmp::max;
 use std::fmt;
 
 pub fn run(lines: &str) -> (u32, u32) {
+    //    env_logger::init();
+
     let (clean_room, clean_guard) = parse(lines);
 
     let mut room = clean_room.clone();
@@ -39,7 +44,6 @@ pub fn run(lines: &str) -> (u32, u32) {
                 StepOutcome::NotDone => panic!("Should be finished at this point."),
             }
         })
-        //        .next();
         .count();
 
     (part1 as u32, part2 as u32)
@@ -60,9 +64,27 @@ fn parse(lines: &str) -> (Room, Guard) {
 
 fn walk_path(room: &mut Room, guard: &mut Guard) -> StepOutcome {
     let mut outcome = StepOutcome::NotDone;
+    let mut loop_counter = 0;
+    let mut stuck_counter = 0;
     while outcome == StepOutcome::NotDone {
+        stuck_counter += 1;
         outcome = guard.movement(room);
+        if outcome == StepOutcome::FoundLoop {
+            loop_counter += 1;
+            if loop_counter > max(room.rows(), room.cols()) {
+                outcome = StepOutcome::FoundLoop;
+            } else {
+                outcome = StepOutcome::NotDone;
+            }
+        }
+        if stuck_counter > 10000000 {
+            // catching a stubborn infinite loop bug
+            info!("\n{}", room_to_string(&room));
+        }
     }
+    info!("{outcome:?}");
+    debug!("{guard:?}");
+    debug!("\n{}", room_to_string(&room));
     outcome
 }
 
@@ -73,6 +95,10 @@ fn add_obstacle(x: usize, y: usize, r: &mut Room) {
         Some(c) => *c = Cell::NewBarrier,
         None => panic!("Can't put obstacle out of bounds."),
     };
+}
+
+fn room_to_string(room: &Room) -> String {
+    room.iter_rows().map(|mut row| row.join("")).join("\n")
 }
 
 type Room = Grid<Cell>;
@@ -91,7 +117,7 @@ enum StepErr {
     Edge,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum StepOutcome {
     NotDone,
     LeftArea,
@@ -129,7 +155,10 @@ impl Guard {
                 StepOutcome::LeftArea
             }
             Err(StepErr::Barrier) => self.turn(r), // loop!
-            Err(StepErr::Loop) => StepOutcome::FoundLoop,
+            Err(StepErr::Loop) => {
+                trace!("found loop from backtracking");
+                StepOutcome::FoundLoop
+            }
             Ok(_) => StepOutcome::NotDone,
         }
     }
@@ -145,7 +174,10 @@ impl Guard {
         let old_cell = r[(self.y, self.x)];
         r[(self.y, self.x)] = path;
         match old_cell == path {
-            true => StepOutcome::FoundLoop,
+            true => {
+                trace!("found loop from turning");
+                StepOutcome::FoundLoop
+            }
             false => StepOutcome::NotDone,
         }
     }
@@ -231,6 +263,12 @@ enum Cell {
     Path(bool, bool), // (horizontal, vertical)
 }
 
+impl fmt::Display for Cell {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
 impl fmt::Debug for Cell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -297,6 +335,10 @@ mod test {
 
     #[test]
     fn part2() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        warn!("works!");
+
         assert_eq!(run(EXAMPLE).1, 6);
     }
 }
