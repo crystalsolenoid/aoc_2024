@@ -9,13 +9,15 @@ pub fn run(lines: &str) -> (u64, u64) {
 
     let part1: u64 = equations
         .iter()
-        .filter(|eq| validate_equation(eq))
+        .filter(|eq| validate_equation_1(eq))
         .map(|eq| eq.0)
         .sum();
 
-    dbg!(part1);
-
-    let part2 = 0;
+    let part2: u64 = equations
+        .iter()
+        .filter(|eq| validate_equation_2(eq))
+        .map(|eq| eq.0)
+        .sum();
 
     (part1 as u64, part2 as u64)
 }
@@ -26,15 +28,28 @@ type Equation = (u64, Vec<u64>);
 enum Op {
     Plus,
     Mul,
+    Conc,
 }
 
-static OPLIST: [Op; 2] = [Op::Mul, Op::Plus];
+static OPLIST_1: [Op; 2] = [Op::Mul, Op::Plus];
+static OPLIST_2: [Op; 3] = [Op::Conc, Op::Mul, Op::Plus];
 
-fn validate_equation(eq: &Equation) -> bool {
+fn validate_equation_1(eq: &Equation) -> bool {
     let ops_length = eq.1.len() - 1;
     // start with all mul because it will help with short circuiting in next step?
     (0..ops_length) // weird trick to get all combos with replacement
-        .map(|_| OPLIST.iter().cloned())
+        .map(|_| OPLIST_1.iter().cloned())
+        .multi_cartesian_product()
+        // okay weird trick over
+        .map(|ops| validate_operations(&eq, &ops))
+        .any(|v| v)
+}
+
+fn validate_equation_2(eq: &Equation) -> bool {
+    let ops_length = eq.1.len() - 1;
+    // start with all mul because it will help with short circuiting in next step?
+    (0..ops_length) // weird trick to get all combos with replacement
+        .map(|_| OPLIST_2.iter().cloned())
         .multi_cartesian_product()
         // okay weird trick over
         .map(|ops| validate_operations(&eq, &ops))
@@ -51,6 +66,7 @@ fn validate_operations(eq: &Equation, ops: &[Op]) -> bool {
             // TODO short circuit if already too big?
             Some(Op::Plus) => acc + n,
             Some(Op::Mul) => acc * n,
+            Some(Op::Conc) => todo!(),
             None => panic!("Operations list too short!"),
         })
         .unwrap();
@@ -87,6 +103,6 @@ mod test {
 
     #[test]
     fn part2() {
-        assert_eq!(run(EXAMPLE).1, 0);
+        assert_eq!(run(EXAMPLE).1, 11387);
     }
 }
