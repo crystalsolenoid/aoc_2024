@@ -6,13 +6,13 @@ use winnow::{
     PResult, Parser, Stateful,
 };
 
-pub fn run(lines: &str) -> (u32, u32) {
+pub fn run(lines: &str) -> (u64, u64) {
     let mut state = true;
     let input = Stream {
         input: &lines.to_owned(),
         state: State(&mut state),
     };
-    let part1 = parse_muls
+    let part1: u32 = parse_muls
         .parse(input)
         .unwrap()
         .iter()
@@ -24,14 +24,14 @@ pub fn run(lines: &str) -> (u32, u32) {
         input: lines,
         state: State(&mut state),
     };
-    let part2 = parse_toggled_muls
+    let part2: u32 = parse_toggled_muls
         .parse(input)
         .unwrap()
         .iter()
         .map(|(a, b)| a * b)
         .sum();
 
-    (part1, part2)
+    (part1.into(), part2.into())
 }
 
 fn mul(input: &mut Stream) -> PResult<Option<(u32, u32)>> {

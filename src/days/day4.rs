@@ -4,14 +4,14 @@ use std::slice::Iter;
 
 const XMAS: [u8; 4] = [b'X', b'M', b'A', b'S'];
 
-pub fn run(lines: &str) -> (u32, u32) {
+pub fn run(lines: &str) -> (u64, u64) {
     let grid: Vec<u8> = lines.lines().flat_map(|l| l.as_bytes().to_vec()).collect();
     //    let grid: Vec<u8> = (0..100).collect();
     let width = lines.lines().next().unwrap().len();
     let grid = Grid::from_vec(grid, width);
     let part1 = part_1(&grid);
     let part2 = grid.count_x_mas();
-    (part1 as u32, part2 as u32)
+    (part1 as u64, part2 as u64)
 }
 
 fn part_1(grid: &Grid<u8>) -> usize {

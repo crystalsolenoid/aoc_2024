@@ -1,51 +1,68 @@
 use itertools::Itertools;
 use winnow::{ascii::dec_uint, combinator::separated, combinator::separated_pair, PResult, Parser};
 
-pub fn run(lines: &str) -> (u32, u32) {
+pub fn run(lines: &str) -> (u64, u64) {
     let equations: Vec<Equation> = lines
         .lines()
         .map(|l| equation.parse(l).expect("{l} failed to parse"))
         .collect();
 
-    validate_equation((6, vec![4, 2, 1]));
+    let part1: u64 = equations
+        .iter()
+        .filter(|eq| validate_equation(eq))
+        .map(|eq| eq.0)
+        .sum();
 
-    let part1 = 0;
+    dbg!(part1);
+
     let part2 = 0;
 
-    (part1 as u32, part2 as u32)
+    (part1 as u64, part2 as u64)
 }
 
-type Equation = (u32, Vec<u32>);
+type Equation = (u64, Vec<u64>);
 
+#[derive(Clone, Debug)]
 enum Op {
     Plus,
     Mul,
 }
 
-fn validate_equation(eq: Equation) -> bool {
+static OPLIST: [Op; 2] = [Op::Mul, Op::Plus];
+
+fn validate_equation(eq: &Equation) -> bool {
+    let ops_length = eq.1.len() - 1;
+    // start with all mul because it will help with short circuiting in next step?
+    (0..ops_length) // weird trick to get all combos with replacement
+        .map(|_| OPLIST.iter().cloned())
+        .multi_cartesian_product()
+        // okay weird trick over
+        .map(|ops| validate_operations(&eq, &ops))
+        .any(|v| v)
+}
+
+fn validate_operations(eq: &Equation, ops: &[Op]) -> bool {
     let (target, operands) = eq;
-
-    let binding = vec![Op::Plus, Op::Plus];
-    let mut operations = binding.iter();
-
-    let result: u32 = operands
+    let mut operations = ops.iter();
+    let result: u64 = operands
         .iter()
         .copied()
         .reduce(|acc, n| match operations.next() {
+            // TODO short circuit if already too big?
             Some(Op::Plus) => acc + n,
             Some(Op::Mul) => acc * n,
             None => panic!("Operations list too short!"),
         })
         .unwrap();
-    result == target
+    result == *target
 }
 
 fn equation(input: &mut &str) -> PResult<Equation> {
     separated_pair(dec_uint, ": ", operands).parse_next(input)
 }
 
-fn operands(input: &mut &str) -> PResult<Vec<u32>> {
-    separated(1.., dec_uint::<_, u32, _>, " ").parse_next(input)
+fn operands(input: &mut &str) -> PResult<Vec<u64>> {
+    separated(1.., dec_uint::<_, u64, _>, " ").parse_next(input)
 }
 
 #[cfg(test)]

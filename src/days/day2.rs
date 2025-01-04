@@ -1,11 +1,11 @@
 use itertools::Itertools;
 use winnow::{ascii::dec_int, combinator::separated, PResult, Parser};
 
-pub fn run(lines: &str) -> (u32, u32) {
+pub fn run(lines: &str) -> (u64, u64) {
     let reports: Vec<_> = lines.lines().map(|l| line.parse(l).unwrap()).collect();
     let part1 = reports.iter().filter(|l| report(l)).count();
     let part2 = reports.iter().filter(|l| dampen(l)).count();
-    (part1 as u32, part2 as u32)
+    (part1 as u64, part2 as u64)
 }
 
 fn report(levels: &[i32]) -> bool {

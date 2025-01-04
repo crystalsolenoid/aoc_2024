@@ -4,7 +4,7 @@ use log::{debug, info, trace, warn};
 use std::cmp::max;
 use std::fmt;
 
-pub fn run(lines: &str) -> (u32, u32) {
+pub fn run(lines: &str) -> (u64, u64) {
     //    env_logger::init();
 
     let (clean_room, clean_guard) = parse(lines);
@@ -46,7 +46,7 @@ pub fn run(lines: &str) -> (u32, u32) {
         })
         .count();
 
-    (part1 as u32, part2 as u32)
+    (part1 as u64, part2 as u64)
 }
 
 fn parse(lines: &str) -> (Room, Guard) {

@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use winnow::{ascii::dec_uint, combinator::separated, combinator::separated_pair, PResult, Parser};
 
-pub fn run(lines: &str) -> (u32, u32) {
+pub fn run(lines: &str) -> (u64, u64) {
     let binding = lines.lines().chunk_by(|l| l.is_empty());
     let mut input = binding.into_iter();
     let mut rules: Vec<_> = input
@@ -37,7 +37,7 @@ pub fn run(lines: &str) -> (u32, u32) {
         .map(|update| middle_page(&update))
         .sum();
 
-    (part1 as u32, part2 as u32)
+    (part1 as u64, part2 as u64)
 }
 
 fn fix_update(rules: &[(usize, usize)], update: &mut [usize]) {

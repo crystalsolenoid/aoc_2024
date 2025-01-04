@@ -5,13 +5,13 @@ use winnow::{
     PResult, Parser,
 };
 
-pub fn run(lines: &str) -> (u32, u32) {
+pub fn run(lines: &str) -> (u64, u64) {
     let (mut left, mut right): (Vec<_>, Vec<_>) =
         lines.lines().map(|l| line.parse(l).unwrap()).collect();
     left.sort_unstable();
     right.sort_unstable();
 
-    let total_distance = left
+    let total_distance: u32 = left
         .iter()
         .zip(right.iter())
         .map(|(a, b)| a.abs_diff(*b))
@@ -29,9 +29,9 @@ pub fn run(lines: &str) -> (u32, u32) {
         })
         .collect();
 
-    let similarity_score = left.iter().map(|a| a * counts.get(a).unwrap_or(&0)).sum();
+    let similarity_score: u32 = left.iter().map(|a| a * counts.get(a).unwrap_or(&0)).sum();
 
-    (total_distance, similarity_score)
+    (total_distance as u64, similarity_score as u64)
 }
 
 fn line(input: &mut &str) -> PResult<(u32, u32)> {
