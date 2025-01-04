@@ -1,34 +1,16 @@
 use grid::Grid;
-use itertools::Itertools;
 use std::fmt;
 
 pub fn run(lines: &str) -> (u32, u32) {
-    let clean_room;
-    let clean_guard;
-    {
-        let mut building_room: Grid<Cell> = grid::grid![];
-        // TODO how to initialize guard for the first time in function? Probably some
-        // Option type stuff...
-        let mut guard: Guard = Guard::new(0, 0, Dir::North);
-        lines
-            .lines()
-            .enumerate()
-            .for_each(|(y, l)| building_room.push_row(parse_line(l, y, &mut guard)));
-
-        clean_room = building_room;
-        clean_guard = guard;
-    }
+    let (clean_room, clean_guard) = parse(lines);
 
     let mut room = clean_room.clone();
     let mut guard = clean_guard.clone();
 
-    let mut outcome = StepOutcome::NotDone;
-    while outcome == StepOutcome::NotDone {
-        outcome = guard.movement(&mut room);
-    }
+    let outcome = walk_path(&mut room, &mut guard);
 
     if outcome == StepOutcome::FoundLoop {
-        dbg!("found a loop");
+        dbg!("Original path shouldn't be a loop.");
     }
 
     let original_path: Vec<_> = room
@@ -63,7 +45,20 @@ pub fn run(lines: &str) -> (u32, u32) {
     (part1 as u32, part2 as u32)
 }
 
-fn walk_path(room: &mut Grid<Cell>, guard: &mut Guard) -> StepOutcome {
+fn parse(lines: &str) -> (Room, Guard) {
+    let mut building_room: Room = grid::grid![];
+    // TODO how to initialize guard for the first time in function? Probably some
+    // Option type stuff...
+    let mut guard: Guard = Guard::new(0, 0, Dir::North);
+    lines
+        .lines()
+        .enumerate()
+        .for_each(|(y, l)| building_room.push_row(parse_line(l, y, &mut guard)));
+
+    (building_room, guard)
+}
+
+fn walk_path(room: &mut Room, guard: &mut Guard) -> StepOutcome {
     let mut outcome = StepOutcome::NotDone;
     while outcome == StepOutcome::NotDone {
         outcome = guard.movement(room);
@@ -71,7 +66,7 @@ fn walk_path(room: &mut Grid<Cell>, guard: &mut Guard) -> StepOutcome {
     outcome
 }
 
-fn add_obstacle(x: usize, y: usize, r: &mut Grid<Cell>) {
+fn add_obstacle(x: usize, y: usize, r: &mut Room) {
     match r.get_mut(y, x) {
         Some(Cell::Guard(_)) => panic!("Can't put the obstacle on the guard."),
         Some(Cell::Barrier) => panic!("Can't put the obstacle on an existing barrier."),
@@ -79,6 +74,8 @@ fn add_obstacle(x: usize, y: usize, r: &mut Grid<Cell>) {
         None => panic!("Can't put obstacle out of bounds."),
     };
 }
+
+type Room = Grid<Cell>;
 
 #[derive(Debug, Copy, Clone)]
 struct Guard {
@@ -106,7 +103,7 @@ impl Guard {
         Guard { x, y, d }
     }
 
-    fn new_path(&self, r: &Grid<Cell>) -> Cell {
+    fn new_path(&self, r: &Room) -> Cell {
         let current_path = match self.d {
             Dir::North | Dir::South => Cell::Path(false, true),
             Dir::West | Dir::East => Cell::Path(true, false),
@@ -125,7 +122,7 @@ impl Guard {
         }
     }
 
-    fn movement(&mut self, r: &mut Grid<Cell>) -> StepOutcome {
+    fn movement(&mut self, r: &mut Room) -> StepOutcome {
         match self.try_step(r) {
             Err(StepErr::Edge) => {
                 r[(self.y, self.x)] = self.new_path(r);
@@ -137,7 +134,7 @@ impl Guard {
         }
     }
 
-    fn turn(&mut self, r: &mut Grid<Cell>) -> StepOutcome {
+    fn turn(&mut self, r: &mut Room) -> StepOutcome {
         self.d = match self.d {
             Dir::North => Dir::East,
             Dir::East => Dir::South,
@@ -153,7 +150,7 @@ impl Guard {
         }
     }
 
-    fn try_step(&mut self, r: &mut Grid<Cell>) -> Result<(usize, usize), StepErr> {
+    fn try_step(&mut self, r: &mut Room) -> Result<(usize, usize), StepErr> {
         match self.pointing_towards() {
             None => Err(StepErr::Edge),
             Some((x, y)) => match r.get(y, x) {
