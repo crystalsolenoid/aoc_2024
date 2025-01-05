@@ -19,7 +19,8 @@ fn main() {
         5 => days::day5::run(&data),
         6 => days::day6::run(&data),
         7 => days::day7::run(&data),
-        8..=25 => todo!(),
+        8 => days::day8::run(&data),
+        9..=25 => todo!(),
         _ => panic!("invalid day"),
     };
     println!("{:?}", result);
