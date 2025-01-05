@@ -66,7 +66,7 @@ fn validate_operations(eq: &Equation, ops: &[Op]) -> bool {
             // TODO short circuit if already too big?
             Some(Op::Plus) => acc + n,
             Some(Op::Mul) => acc * n,
-            Some(Op::Conc) => todo!(),
+            Some(Op::Conc) => concat(acc, n),
             None => panic!("Operations list too short!"),
         })
         .unwrap();
@@ -79,6 +79,11 @@ fn equation(input: &mut &str) -> PResult<Equation> {
 
 fn operands(input: &mut &str) -> PResult<Vec<u64>> {
     separated(1.., dec_uint::<_, u64, _>, " ").parse_next(input)
+}
+
+fn concat(a: u64, b: u64) -> u64 {
+    let shift = b.ilog10() + 1;
+    a * 10u64.pow(shift) + b
 }
 
 #[cfg(test)]
